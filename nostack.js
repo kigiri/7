@@ -1,4 +1,5 @@
 import { fork } from 'child_process'
+import { networkInterfaces } from 'os'
 import { fileURLToPath } from 'url'
 import { stat, readdir, readFile } from 'fs/promises'
 import { dirname, join, basename, parse } from 'path'
@@ -234,7 +235,19 @@ export const server = createServer(async (req, res) => {
   }
 })
 
-server.on('listening', () => handlers['/'] = buildIndex())
+server.on('listening', () => {
+  handlers['/'] = buildIndex()
+  const details = server.address()
+
+  if (typeof details === 'string') return console.log(details)
+  const local = details?.address === '::' ? 'localhost' : details?.address
+  Object.entries(networkInterfaces())
+    .map(([name, interfaces]) => interfaces.map(i => [name, i]))
+    .flat()
+    .filter(([,i]) => i.family === 'IPv4' && !i.internal)
+    .map(([name, i]) => `${name}: http://${i.address}:${details?.port}`)
+    .forEach(n => console.log(n))
+})
 
 const modulesInit = []
 const modulesDeclarations = []
