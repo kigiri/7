@@ -297,7 +297,7 @@ const Card = (props, i) => {
   const className = `card ${type} age${age} ${slot.key} ${slot.y % 2 ? 'back' : ''}`
   const onmousedown = (e) => {
     if (!Game.state.turn.get()) return
-    el.classList.contains('back') || setHolded(props.element)
+    setHolded(props.element)
   }
 
   const el = div({ className, onmousedown }, [
@@ -327,7 +327,6 @@ CSS.push(`
   z-index: 0;
 }
 .card *, .card { user-select: none }
-
 .card.back .effects { visibility: hidden }
 .card.back .cost { visibility: hidden }
 .card.back {
@@ -347,11 +346,14 @@ CSS.push(`
   box-shadow: inset 0px 0px 0 calc(2*var(--n)) #0006;
 }
 
+#board[data-turn="0"] .card, .card.back { pointer-events: none }
+
 .card p {
   height: 50%;
   display: flex;
   justify-content: center;
-}`)
+}
+`)
 
 
 const CardEffect = e => div({ className: `effect ${e.type}${e.amount || ''}` })
