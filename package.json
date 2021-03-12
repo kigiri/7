@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "cookie": "^0.4.1",
+    "ws": "^7.4.2"
+  }
+}
