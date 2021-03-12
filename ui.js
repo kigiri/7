@@ -267,17 +267,15 @@ CSS.push(`
 }
 `)
 
+const ActivePlayerTurnOnly = target => N(2)
+  .flatMap(p => N(2).map(t => [p, t, `${target}-${Number(p === t)}`]))
+  .map(([p, t, id]) => `#board[data-player="${p}"][data-turn="${t}"][data-target="${id}"] #${id}`)
+
 // Intractivity
 CSS.push(`
-#board[data-target="bank"] #bank,
-#board[data-player="0"][data-turn="1"][data-target="wonders-0"] #wonders-0,
-#board[data-player="1"][data-turn="0"][data-target="wonders-0"] #wonders-0,
-#board[data-player="0"][data-turn="0"][data-target="wonders-1"] #wonders-1,
-#board[data-player="1"][data-turn="1"][data-target="wonders-1"] #wonders-1,
-#board[data-player="0"][data-turn="1"][data-target="zone-0"] #zone-0,
-#board[data-player="1"][data-turn="0"][data-target="zone-0"] #zone-0,
-#board[data-player="0"][data-turn="0"][data-target="zone-1"] #zone-1,
-#board[data-player="1"][data-turn="1"][data-target="zone-1"] #zone-1 {
+${ActivePlayerTurnOnly('wonders').join(',\n')},
+${ActivePlayerTurnOnly('zone').join(',\n')},
+#board[data-target="bank"] #bank {
   outline: #fff5 ${calc(1/3)} dashed;
   outline-offset: ${calc(-1)};
 }
