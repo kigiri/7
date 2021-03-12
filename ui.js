@@ -90,19 +90,6 @@ ${N(10).map(n => `.card .💎${n} {
 `)
 
 // Y = vertical, X = horizontal
-const calcTop = y => y * 6
-const calcLeft = (x, y) => x*16 + (y%2)*8
-const moveFrom = (mx, my, vw) => {
-  if (!HOLDED || mx < 0 && my < 0) return
-  const { x, y } = HOLDED.card.slot
-
-  const size = (15/2)*vw
-  const top = (calcTop(y) + 1.75)* vw + size
-  const left = (calcLeft(x, y) + 1.75) * vw + size
-
-  HOLDED.style.transform = `translate(${mx-left}px, ${my-top}px)`
-}
-
 const checkBounds = (width, top, left, x, y) =>
   y > top  && true &&
   x > left && x < left + width
@@ -130,6 +117,21 @@ const findTarget = (x, y, width) => {
   ? setTargeted('zone-1')
 
   : setTargeted('')
+}
+
+const calcTop = y => y * 6
+const calcLeft = (x, y) => x*16 + (y%2)*8
+const moveFrom = (mx, my, width) => {
+  findTarget(mx, my, width)
+  const vw = width / 100
+  if (!HOLDED || mx < 0 && my < 0) return
+  const { x, y } = HOLDED.card.slot
+
+  const size = (15/2)*vw
+  const top = (calcTop(y) + 1.75)* vw + size
+  const left = (calcLeft(x, y) + 1.75) * vw + size
+
+  HOLDED.style.transform = `translate(${mx-left}px, ${my-top}px)`
 }
 
 CSS.push(...[...Game.slots.values()].map(({key, x, y}) => `
@@ -474,7 +476,7 @@ let clicked
 const setMouse = (e, name) => {
   const { top, left, width } = boardPosition.get()
   const x = Math.max(Math.min(e.x - left, width), 0)
-  const y = Math.max(Math.min(e.y - top, width), 0)
+  const y = Math.max(Math.min(e.y - top,  width), 0)
   cursor.set([x/width, y/width])
 
   // clear holded if left click isn't pressed
@@ -482,13 +484,13 @@ const setMouse = (e, name) => {
   const pad = HOLDED ? 100 : 0
   const hover = HOLDED || nearestCardMap.get(e.target)
   interaction.set(hover ? hover.card.index + pad : 200)
-  findTarget(x, y, width)
+  moveFrom(x, y, width)
 }
 
 addEventListener('mouseover', e => setMouse(e, 'mouseover'))
 addEventListener('mousemove', e => setMouse(e, 'mousemove'))
 addEventListener('mousedown', e => setMouse(e, 'mousedown'))
-addEventListener('mouseup', e => setMouse(e, 'mouseup'))
+addEventListener('mouseup',   e => setMouse(e, 'mouseup'))
 
 const handleInteraction = (interaction, s) => {
   console.log(`change interaction from ${s}`, { interaction })
@@ -506,22 +508,18 @@ const handleInteraction = (interaction, s) => {
   }
 }
 
-Game.state.interaction.sub(e => handleInteraction(e, 'normal'))
-Game.state.enemyInteraction.sub(e => handleInteraction(e, 'enemy'))
-Game.state.cursor.sub(([x,y]) => {
+const handleCursor = (data, el) => {
   const { width } = boardPosition.get()
-  moveFrom(x*width, y*width, width/100)
-  findTarget(x*width, y*width, width)
-})
-
-Game.state.enemyCursor.sub(data => {
-  const { top, left, width } = boardPosition.get()
   const x = Math.round(data[0]*width)
   const y = Math.round(data[1]*width)
-  cursorEl.style.transform = `translate(${x-7}px, ${y-6}px)`
-  moveFrom(x, y, width/100)
-  findTarget(x, y, width)
-})
+  el && (el.style.transform = `translate(${x-7}px, ${y-6}px)`)
+  moveFrom(x, y, width)
+}
+
+Game.state.interaction.sub(e => handleInteraction(e, 'normal'))
+Game.state.enemyInteraction.sub(e => handleInteraction(e, 'enemy'))
+Game.state.cursor.sub(handleCursor)
+Game.state.enemyCursor.sub(data => handleCursor(data, cursorEl))
 
 Game.state.enemyLastTarget.sub(target => {
   if (target < 100) {
