@@ -201,6 +201,10 @@ exportJS(function RTC() {
     })
 
     const { enemyCursor, actionCount, enemyInteraction, enemyLastTarget } = Game.state
+    const parseBlobPayload = blob => blob
+      .arrayBuffer()
+      .then(parsePayload)
+
     const parsePayload = data => {
       const v = new DataView(data)
       actionCount.set(v.getUint8(ACTION_COUNT) % 2)
@@ -214,8 +218,8 @@ exportJS(function RTC() {
       // if no data was send in the last second
       // send confirm state package to check that
       // the client is still alive (maybe already done by WebRTC?)
-
-      if (typeof data !== 'string') return parsePayload(data)
+      if (data instanceof ArrayBuffer) return parsePayload(data)
+      if (data instanceof Blob) return parseBlobPayload(data)
       // recieve game action
       const payload = JSON.parse(data)
       if (isHost) return console.log('RTC.json', payload)
