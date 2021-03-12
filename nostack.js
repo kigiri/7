@@ -37,15 +37,35 @@ export const listFiles = check => async path => {
 export const listJSFiles = listFiles(f => f.endsWith('.js'))
 export const listCSSFiles = listFiles(f => f.endsWith('.css'))
 export const getRootDir = meta => dirname(fileURLToPath(meta.url))
-export const event = (subs = new Set()) => {
-  const trigger = data => {
-    for (const fn of subs) fn(data)
-  }
-  trigger.on = fn => {
-    subs.add(fn)
-    return () => subs.delete(fn)
-  }
-  return trigger
+export function Eve() {
+  const id = _ => _
+  const eq = (a, b) => a === b
+  const call = subs => value => { for (const fn of subs) fn(value) }
+  return (Eve = (data, opts) => {
+    const subs = new Set()
+    const on = fn => (subs.add(fn), () => subs.delete(fn))
+    const next = () => new Promise(once)
+    const once = fn => subs.add(function $(prev, next) {
+      fn(prev, next)
+      subs.delete($)
+    })
+    if (data === undefined) return { next, once, on, trigger: call(subs) }
+    const { mapper = id, compare = eq } = opts || {}
+    data = mapper(data)
+    return {
+      once,
+      next,
+      map: mapper => Eve(data, { mapper }),
+      get: () => data,
+      on: fn => (fn(data), on(data)),
+      set: (next, force) => {
+        next = mapper(next)
+        if (force || next === data) return
+        for (const fn of subs) fn(next, data)
+        data = next
+      },
+    }
+  })()
 }
 
 export const errors = new Proxy(
@@ -169,8 +189,6 @@ export const indexJS = []
 export const indexCSS = []
 export const indexHTML = []
 const files = await listJSFiles(rootDir)
-const events = { request: event() }
-export const onRequest = events.request.on
 export const handlers = {}
 await Promise.all(files.filter(f => f.endsWith('.browser.js')).map(async f => {
   handlers[`/${basename(f).slice(0, -11)}.js`] = await readFile(f, 'utf8')
@@ -500,7 +518,6 @@ exportJS(function Stack() {
   }
 
   Object.assign(Stack, {
-    VALUE,
     writers,
     readers,
     isObject,

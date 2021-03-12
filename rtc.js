@@ -7,11 +7,10 @@ import * as ws from './ws.js'
 
 // AUTHENTICATE CLIENT
 const getCookies = req => req.headers.cookie && cookie.parse(req.headers.cookie)
-ws.onConnection(client => {
+ws.onOpen(client => {
   const sessionId = getCookies(client.req)?.['X-Session-Id']
   client.id = sessionId || randomBytes(4).toString('hex')
 })
-
 
 // HANDLE SESSIONS SIGNALS
 // initOffer -> waiting for another player

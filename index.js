@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs'
 
-import { onRequest, server, indexJS } from './nostack.js'
+import { server, indexJS } from './nostack.js'
 
 import './ws.js'
 import './game.js'

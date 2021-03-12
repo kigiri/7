@@ -1,27 +1,22 @@
 import _ws from 'ws'
 
-import { event, server, exportJS } from './nostack.js'
+import { Eve, server, exportJS } from './nostack.js'
 
 const clients = new Set()
 const makePayload = (route, data) =>
   data == null ? route : `${route}:${JSON.stringify(data)}`
 
-export const broadcast = (route, data, condition = () => true) => {
-  const payload = makePayload(route, data)
+export const broadcast = (type, data, condition = () => true) => {
+  const payload = JSON.stringify({ type, data })
   let count = 0
   for (const client of clients) {
     if (!condition(client, data)) continue
     client.ws.send(payload)
     count++
   }
-  count && console.log('broadcast', { type: route, data })
+  count && console.log('broadcast', { type, data })
   return count
 }
-
-const socketEvents = { connection: event(), close: event(), message: event() }
-export const onConnection = socketEvents.connection.on
-export const onMessage = socketEvents.message.on
-export const onClose = socketEvents.close.on
 
 // handle means that we will reply with the return value
 // on just trigger call the function
@@ -32,12 +27,10 @@ export const handle = (key, fn) => {
 }
 
 export const on = key => {
-  if (events[key]) throw Error(`event ${key} already registered`)
-  const trigger = event()
+  if (events[key]) return events[key].on
   exportJS(`WS.${key} = (send => data => send('${key}', data))(WS.send)`)
-  return (events[key] = trigger).on
+  return (events[key] = Eve()).on
 }
-
 
 export const find = (fn, data) => {
   for (const client of clients) {
@@ -47,34 +40,30 @@ export const find = (fn, data) => {
 
 const EXPECTED = Symbol('EXPECTED')
 export const expected = err => (err[EXPECTED] = true, err)
-export const send = (client, route, data) =>
-  client.ws.send(makePayload(route, data))
+export const send = (client, type, data) =>
+  client.ws.send(JSON.stringify({ type, data }))
 
+const socketEvents = { open: Eve() }
+export const onOpen = socketEvents.open.on
 new _ws.Server({ server }).on('connection', (ws, req) => {
   const client = { ws, req }
   clients.add(client)
-  socketEvents.connection(client)
-  ws.on('close', () => {
-    clients.delete(client)
-    onClose(client)
-  })
+  socketEvents.open.trigger(client)
+  ws.on('close', () => clients.delete(client))
   ws.on('message', message => {
-    const delimIndex = message.indexOf(':')
-    const type = message.slice(0, delimIndex)
-    const data = JSON.parse(message.slice(delimIndex + 1))
-    // handle user input
+    const { type, data } = JSON.parse(message)
     const handler = events[type]
     if (!handler) return console.log('not found', { type, data })
-    if (handler.on) {
+    if (handler.trigger) {
       console.log('WS:on', type, data)
-      return handler({ data, client })
+      return handler.trigger({ data, client })
     }
     try {
       const result = handler(data, client)
-      result && ws.send(makePayload(type, result))
+      result && ws.send(JSON.stringify({ type, data: result }))
       console.log('WS:event', { type, data, result })
     } catch (err) {
-      ws.send(makePayload(`${type}Error`, { message: err.message }))
+      send(client, `${type}Error`, { message: err.message })
       err[EXPECTED]
         ? console.log('WS:error', { type, data })
         : console.error('WS:error', { type, data }, `\n${err.stack}`)
@@ -112,17 +101,12 @@ exportJS(function WS() {
 
   const send = WS.send = (type, data) =>
   console.debug('WS.send', { type, data }) ||
-  (data == null
-    ? socket.send(type)
-    : socket.send(`${type}:${JSON.stringify(data)}`))
+    socket.send(JSON.stringify({ type, data }))
 
   socket.onmessage = event => {
-    const message = event.data
-    const delimIndex = message.indexOf(':')
-    const type = delimIndex < 0 ? message : message.slice(0, delimIndex)
+    const { type, data } = JSON.parse(event.data)
     const route = routes[type]
     if (!route) return console.warn('WS.receive', { type }, 'not found')
-    const data = delimIndex > 0 ? JSON.parse(message.slice(delimIndex + 1)) : {}
     console.debug('WS.receive', { type, data })
     route(data)
   }
