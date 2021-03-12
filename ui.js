@@ -5,6 +5,7 @@ const setHolded = newHolded => {
   HOLDED = newHolded
 }
 
+const calc = n => `calc(var(--n)*${n})`
 const setTargeted = newTarget =>
   newTarget === TARGET || (board.dataset.target = TARGET = newTarget)
 
@@ -134,8 +135,8 @@ const findTarget = (x, y, width) => {
 CSS.push(...[...Game.slots.values()].map(({key, x, y}) => `
 
 .${key} {
-  top: calc(${calcTop(y) + 1.5} * var(--n));
-  left: calc(${calcLeft(x, y) + 1.5} * var(--n));
+  top: ${calc(calcTop(y) + 1.5)};
+  left: ${calc(calcLeft(x, y) + 1.5)};
   transform: scale(1);
 }
 
@@ -162,8 +163,8 @@ const board = div({ id: 'board' })
 CSS.push(`
 #board {
   margin: 0 auto;
-  width: calc(100 * var(--n));
-  height: calc(100 * var(--n));
+  width: ${calc(100)};
+  height: ${calc(100)};
   position: relative;
   background: #222;
   overflow: hidden;
@@ -184,7 +185,7 @@ CSS.push(`
 }
 #cardsWrapper {
   width: 100%;
-  height: calc(50*var(--n));
+  height: ${calc(50)};
 }
 `)
 
@@ -194,13 +195,13 @@ CSS.push(`
 #board[data-player="1"] #zone-1,
 #board[data-player="0"] #zone-0 {
   background-color: #273343;
-  box-shadow: inset 0 0 var(--n) calc(var(--n)*2.5) #222;
+  box-shadow: inset 0 0 var(--n) ${calc(2.5)} #222;
   border-radius: 10%;
 }
 
 #zone-1, #zone-0 {
   width: 50%;
-  height: calc(40*var(--n));
+  height: ${calc(40)};
 }
 `)
 
@@ -208,7 +209,7 @@ const bottomActionsWrapper = div({ id: 'bottomActionsWrapper' })
 CSS.push(`
 #bottomActionsWrapper {
   width: 100%;
-  height: calc(10*var(--n));
+  height: ${calc(10)};
   display: grid;
   grid-template-columns: 1fr 2fr 1fr 1fr 2fr 1fr;
   grid-template-rows: 1fr 0.25fr;
@@ -263,14 +264,14 @@ CSS.push(`
 #war-progress .step {
   background-color: #28170a;
   position: relative;
-  width: calc(var(--n)*4)
+  width: ${calc(4)};
 }
 
 #war-progress {
   background: #000;
   grid-area: 2 / 2 / 3 / 6;
   display: flex;
-  border: calc(var(--n)/2) solid #000;
+  border: ${calc(1/2)} solid #000;
   justify-content: space-between;
 }
 `)
@@ -286,8 +287,8 @@ CSS.push(`
 #board[data-player="1"][data-turn="0"][data-target="zone-0"] #zone-0,
 #board[data-player="0"][data-turn="0"][data-target="zone-1"] #zone-1,
 #board[data-player="1"][data-turn="1"][data-target="zone-1"] #zone-1 {
-  outline: #fff5 calc(var(--n)/3) dashed;
-  outline-offset: calc(var(--n)*-1);
+  outline: #fff5 ${calc(1/3)} dashed;
+  outline-offset: ${calc(-1)};
 }
 `)
 
@@ -311,13 +312,13 @@ const Card = (props, i) => {
 }
 
 const shadow = `
-  0 calc(-2*var(--n)) calc(3*var(--n)) calc(-1.8*var(--n)) #0006,
-  0 calc(0.25*var(--n)) calc(var(--n)) #0008`
+  0 ${calc(-2)} ${calc(3)} ${calc(-1.8)} #0006,
+  0 ${calc(1/4)} var(--n) #0008`
 
 CSS.push(`
 .card {
-  width: calc(15* var(--n));
-  height: calc(15* var(--n));
+  width:  ${calc(15)};
+  height: ${calc(15)};
   background: white;
   border-radius: var(--n);
   overflow: hidden;
@@ -328,14 +329,14 @@ CSS.push(`
   z-index: 0;
 }
 .card *, .card { user-select: none }
-.card.back .effects { visibility: hidden }
+.card.back .effects,
 .card.back .cost { visibility: hidden }
 .card.back {
   background: #000;
   box-shadow:
     ${shadow},
-    inset 0px calc(-2*var(--n)) calc(3*var(--n)) calc(-1.8*var(--n)) #ffd36b7a,
-    inset 0px calc(2*var(--n)) calc(1*var(--n)) calc(-1.8*var(--n)) #ffdda05e;
+    inset 0px ${calc(-2)} ${calc(3)} ${calc(-1.8)} #ffd36b7a,
+    inset 0px ${calc(2) }  var(--n)  ${calc(-1.8)} #ffdda05e;
 }
 .card.back:after {
   content: ' ';
@@ -344,7 +345,7 @@ CSS.push(`
   display: block;
   position: absolute;
   top: 0;
-  box-shadow: inset 0px 0px 0 calc(2*var(--n)) #0006;
+  box-shadow: inset 0px 0px 0 ${calc(2)} #0006;
 }
 
 #board[data-turn="0"] .card, .card.back { pointer-events: none }
@@ -369,8 +370,8 @@ CSS.push(`
   justify-content: center;
   align-items: center;
   box-shadow:
-    inset 0px calc(-2*var(--n)) calc(3*var(--n)) calc(-1.8*var(--n)) #e4b254,
-    inset 0px calc(2*var(--n)) calc(1*var(--n)) calc(-1.8*var(--n)) #ffdda0;
+    inset 0px ${calc(-2)} ${calc(3)} ${calc(-1.8)} #e4b254,
+    inset 0px ${calc(2) }  var(--n)  ${calc(-1.8)} #ffdda0;
 }
 
 .card .effect {
@@ -394,7 +395,7 @@ CSS.push(`
 .card .cost {
   flex-wrap: wrap;
   align-content: center;
-  box-shadow: inset 0px calc(-2*var(--n)) calc(3*var(--n)) calc(-1.8*var(--n)) #ffd36b;
+  box-shadow: inset 0px ${calc(-2)} ${calc(3)} ${calc(-1.8)} #ffd36b;
 }
 
 .card .cost span {
