@@ -45,6 +45,8 @@ export const find = (fn, data) => {
   }
 }
 
+const EXPECTED = Symbol('EXPECTED')
+export const expected = err => (err[EXPECTED] = true, err)
 export const send = (client, route, data) =>
   client.ws.send(makePayload(route, data))
 
@@ -73,8 +75,9 @@ new _ws.Server({ server }).on('connection', (ws, req) => {
       console.log('WS:event', { type, data, result })
     } catch (err) {
       ws.send(makePayload(`${type}Error`, { message: err.message }))
-      console.error('WS:error', { type, data })
-      console.error(err.stack)
+      err[EXPECTED]
+        ? console.log('WS:error', { type, data })
+        : console.error('WS:error', { type, data }, `\n${err.stack}`)
     }
   })
 })

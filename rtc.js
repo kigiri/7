@@ -30,7 +30,7 @@ const isHost = (client, data) => client.id === data.id
 ws.handle('findSession', (data, client) => {
   console.log(client.id, 'findSession', data)
   const host = ws.find(isHost, data)
-  if (!host || !host.session) throw Error('session not found')
+  if (!host || !host.session) throw ws.expected(Error('session not found'))
   client.host = host
   host.peer = client
   return host.session
