@@ -27,6 +27,12 @@ const inline = (emoji) =>
 const inlineText = n =>
   `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 140' style='font-size: 120px;font-family: monospace;font-weight: bold'%3E%3Ctext x='50%25' y='58%25' dominant-baseline='middle' text-anchor='middle'%3E${n}%3C/text%3E%3C/svg%3E")`
 
+const icon = (emoji, bgHex = '391f0c8a') => `
+.card .${[...emoji][0]}, .card .${emoji} {
+  background-color: #${bgHex};
+  background-image: ${inline(emoji)};
+}`
+
 CSS.push(`
 .card.age1.back { background: #634339 }
 .card.age2.back { background: #256f8d }
@@ -48,37 +54,20 @@ ${N(10).map(n => `.card .💎${n} {
   background-image: ${inlineText(n)};
 }`).join('\n')}
 
-.card .⚔ {
-  background-image: ${inline('⚔️')}
-}
-.card .🧱 {
-  background-color: #cd5128;
-  background-image: ${inline('🧱')};
-}
-.card .⛰ {
-  background-color: #97999b;
-  background-image: ${inline('⛰️')};
-}
-.card .🌲 {
-  background-color: #8ab754;
-  background-image: ${inline('🌲')};
-}
-.card .🧵 {
-  background-color: #62bef5;
-  background-image: ${inline('🧵')};
-}
-.card .📜 {
-  background-color: #d3a77c;
-  background-image: ${inline('📜')};
-}
+${icon('⚔️')}
+${icon('🧱', 'cd5128')}
+${icon('⛰️', '97999b')}
+${icon('🌲', '8ab754')}
+${icon('🧵', '62bef5')}
+${icon('📜', 'd3a77c')}
 
-.card .⚗ { background-image: ${inline('⚗️')} }
-.card .📚 { background-image: ${inline('📚')} }
-.card .✒ { background-image: ${inline('✒️')} }
-.card .⚙ { background-image: ${inline('⚙️')} }
-.card .⚖ { background-image: ${inline('⚖️')} }
-.card .🔭 { background-image: ${inline('🔭')} }
-.card .📐 { background-image: ${inline('📐')} }
+${icon('⚗️')}
+${icon('📚')}
+${icon('✒️')}
+${icon('⚙️')}
+${icon('⚖️')}
+${icon('🔭')}
+${icon('📐')}
 
 .card.🟤 .effects { background-color: #97513c } /* ■ */
 .card.⚪ .effects { background-color: #7c7e81 } /* ⧫ */
