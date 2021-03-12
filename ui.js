@@ -255,10 +255,11 @@ CSS.push(`
 
 const warProgress = div({ id: 'war-progress' }, [
   N(8).map(n => div({ id: `war-0-${8-n}`, className: 'step' })),
-  div({ className: 'step' }),
+  div({ className: 'step active' }),
   N(8).map(n => div({ id: `war-1-${n+1}`, className: 'step' })),
 ])
 CSS.push(`
+#war-progress .step.active { background-color: #c4151e }
 #war-progress .step {
   background-color: #28170a;
   position: relative;
