@@ -104,7 +104,7 @@ exportJS(function WS() {
     }
   }
 
-  const socket = new WebSocket('ws://localhost:8080')
+  const socket = new WebSocket(`ws://${location.host}`)
   WS.connection = new Promise((s, f) => {
     socket.onopen = s
     socket.onerror = f // TODO: handle connexion error
@@ -129,7 +129,7 @@ exportJS(function WS() {
 
   socket.onclose = async function reconnectAndReload(e) {
     setTimeout(() => {
-      const s = new WebSocket('ws://localhost:8080')
+      const s = new WebSocket(`ws://${location.host}`)
       s.onopen = () => location.reload()
       s.onclose = s.onerror = reconnectAndReload
     }, 1000)
