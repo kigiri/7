@@ -163,67 +163,52 @@ exportJS(function RTC() {
 
   const coms = ({ channel }) => {
     console.log('RTC connected', { channel })
+
+    const { input } = Encoding
+    const { enemyCursor, enemyInteraction, moves } = Game.state
     const isHost = state.role.get() === 'host'
+    Game.state.interaction.on(value => {
+      input.encodeInteraction(value)
+      channel.send(input.buf)
+    })
 
-    const send = (type, data) => {
-      JSON.stringify({ type, data })
-    }
-
-    // BUFFER PAYLOAD LAYOUT
-    let size = 0
-    const INTERACTION = size; size++ // Uint8
-    const X = size; size+=4 // Float32
-    const Y = size; size+=4 // Float32
-    const buf = new ArrayBuffer(size)
-    const view = new DataView(buf)
-
-    const writeUint8 = offset => value => {
-      view.setUint8(offset, value)
-      channel.send(buf)
-    }
-
+    let seed
     let lastUpdate = Date.now()
-    Game.state.interaction.on(writeUint8(INTERACTION))
     Game.state.cursor.on(([x, y]) => {
       const now = Date.now()
       // cap too ~16ms because 60hz + is overkill
       if (now - lastUpdate < 15) return
       lastUpdate = now
-      view.setFloat32(X, x)
-      view.setFloat32(Y, y)
-      channel.send(buf)
+      input.setCoords(x, y)
+      channel.send(input.buf)
     })
 
-    const { enemyCursor, enemyInteraction } = Game.state
-    const parseBlobPayload = blob => blob
-      .arrayBuffer()
-      .then(parsePayload)
-
-    const parsePayload = data => {
-      const v = new DataView(data)
-      enemyInteraction.set(v.getUint8(INTERACTION))
-      enemyCursor.set([v.getFloat32(X), v.getFloat32(Y)])
+    const parsePayload = buf => {
+      if (buf.byteLength === Encoding.pick.SIZE) {
+        encoding.pick.decode(buf)
+      } else if (buf.byteLength === input.SIZE) {
+        if (!seed) {
+          seed = Encoding.seed.decode(buf)
+          return Game.init({ seed, isHost })
+        }
+        const packet = input.decode(buf)
+        enemyInteraction.set(packet.interaction)
+        enemyCursor.set(packet.cursor)
+      } else {
+        moves.set([...moves.get(), ...Encoding.move.decode(buf)])
+      }
     }
 
-    channel.onmessage = ({ data }) => {
-      // TODO: hearthbeat
-      // if no data was send in the last second
-      // send confirm state package to check that
-      // the client is still alive (maybe already done by WebRTC?)
-      if (data instanceof ArrayBuffer) return parsePayload(data)
-      if (data instanceof Blob) return parseBlobPayload(data)
-      // recieve game moves
-      const payload = JSON.parse(data)
-      if (isHost) return console.log('RTC.json', payload)
-      Game.init({ ...payload, isHost })
-    }
+    channel.onmessage = ({ data }) =>
+      data instanceof ArrayBuffer
+        ? parsePayload(data)
+        : data.arrayBuffer().then(parsePayload)
 
     if (!isHost) return
-    const seed = Math.floor(Math.random() * 0x7FFFFFFF)
-    // if host send currend game data
-    const initialGameState = { seed, moves: Game.state.moves.get() }
-    isHost && channel.send(JSON.stringify(initialGameState))
-    Game.init({...initialGameState, isHost })
+    seed = Math.floor(Math.random() * 0xFFFFFFFF)
+    channel.send(new Uint32Array([seed]).buffer)
+    const history = Game.state.moves.get()
+    history.length && channel.send(Encoding.move.encode(history))
   }
 
   const connect = async () => {

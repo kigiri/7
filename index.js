@@ -4,6 +4,7 @@ import { server, indexJS } from './nostack.js'
 
 import './ws.js'
 import './game.js'
+import './encoding.js'
 import './rtc.js'
 
 indexJS.push(readFileSync('./ui.js', 'utf8'))
