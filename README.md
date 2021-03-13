@@ -225,12 +225,15 @@ from the game state and react accordingly or trigger those that are initiated fr
 - [X] Connect 2 session with webRTC and share UI state
 - [X] Model basic game cards
 - [X] Basic cards UI & Interactions
+- [ ] Sell a card
+- [ ] Build a card
 - [ ] Have way to fiddle with your cards while you wait for the other player
 - [ ] Basic cards game logic *(working on it)*
 - [ ] Model special cards game model
 - [ ] special cards game logic
 - [ ] Full game UI (gold counter & co)
 - [ ] Handle wonders selection phase
+- [ ] Build a wonder
 - [ ] Handle wonders effects
 - [ ] Wining / Loosing events
 - [ ] front end for sharing sessions
@@ -239,5 +242,6 @@ from the game state and react accordingly or trigger those that are initiated fr
 - [ ] Handle connection loss and recover pending game state
 - [ ] Compress index in brotli & gzip
 - [ ] minify a bit the JS *(trim white spaces && remove comments)*
+- [ ] Low Graphism mode for slow computers (no animations & no box-shadows)
 - [ ] Rewrite bundler in Deno
 - [ ] Rewrite the server in rust
