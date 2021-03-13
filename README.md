@@ -102,17 +102,17 @@ I had one because I was trying to register the `iceCandidate` too soon, almost g
 
 for that I decided to try to represent all my needed state as a very small message
 ```js
-const ACTION_COUNT = size; size++ // Uint8
+const MOVE_COUNT = size; size++ // Uint8
 const INTERACTION = size; size++ // Uint8
 const LAST_TARGET = size; size++ // Uint8
 const X = size; size+=4 // Float32
 const Y = size; size+=4 // Float32
 ```
 `X` & `Y` are the mouse coordinates, not needed but fun I think.
-`ACTION_COUNT` total actions made, used for syncing state
+`MOVE_COUNT` total moves made, used for syncing state
 `INTERACTION` is what the mouse play with (hover or grabbing)
 `LAST_TARGET` is the last target of the latest game event
-I plan to use it to confirm plays and specify types of actions
+I plan to use it to confirm plays and specify types of moves
 
 This is what I got so far, the idea is that it's small enough
 to just stream all the changes through the channel.

@@ -196,9 +196,9 @@ CSS.push(`
 }
 `)
 
-const bottomActionsWrapper = div({ id: 'bottomActionsWrapper' })
+const bottomWrapper = div({ id: 'bottomWrapper' })
 CSS.push(`
-#bottomActionsWrapper {
+#bottomWrapper {
   width: 100%;
   height: ${calc(10)};
   display: grid;
@@ -281,7 +281,7 @@ ${ActivePlayerTurnOnly('zone').join(',\n')},
 }
 `)
 
-bottomActionsWrapper.append(P0Wonders, P1Wonders, P0Hub, P1Hub, bank, warProgress)
+bottomWrapper.append(P0Wonders, P1Wonders, P0Hub, P1Hub, bank, warProgress)
 
 const Card = (props, i) => {
   const { age, type, name, effects, cost, index, slot } = props
@@ -501,20 +501,7 @@ const handleCursor = (data, el) => {
 Game.state.interaction.on(e => handleInteraction(e, 'normal'))
 Game.state.enemyInteraction.on(e => handleInteraction(e, 'enemy'))
 Game.state.cursor.on(data => handleCursor(data)) // meh
-Game.state.enemyCursor.on(data => {
-  handleCursor(data, cursorEl)
-})
-Game.state.enemyLastTarget.on(target => {
-  if (target < 100) {
-    // handle card target (for destroys)
-  } else if (target < 105) {
-    // t-100 = wonder index
-  } else if (target < 106) {
-    // 105 = enemy zone (normal card build)
-  } else {
-    // 106 = bank
-  }
-})
+Game.state.enemyCursor.on(data => handleCursor(data, cursorEl))
 
 Stack.css(`
 :root { --n: 1vh }
@@ -539,19 +526,19 @@ ${CSS.join('\n')}
 // host generate and send initial Game.state of the game
 // 
 
-board.append(cardsWrapper, P0Zone, P1Zone, bottomActionsWrapper)
+board.append(cardsWrapper, P0Zone, P1Zone, bottomWrapper)
 document.body.append(board)
 
 Game.state.turn.on(turn => board.dataset.turn = turn)
 Game.state.player.on(player => board.dataset.player = player)
-Game.state.actions.on(actions => {
+Game.state.moves.on(moves => {
   // 0 = player 1 pick 1 wonder (round 1)
   // 1 = player 2 pick 2 wonders, last is given to player 1
   // 2 = player 2 pick 1 wonder (round 2)
   // 3 = player 1 pick 2 wonders, last is given to player 2
   // 4 = player 1 pick first card
 
-  board.dataset.age = Math.min(Math.ceil((actions.length - 3) / 20), 0) || 1
+  board.dataset.age = Math.min(Math.ceil((moves.length - 3) / 20), 0) || 1
 })
 
 // New deck = new game

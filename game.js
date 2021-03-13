@@ -184,13 +184,20 @@ exportJS(function Game({ cards, slotsValues, agePositions, art }) {
   Game.cards = cards
 
   // GAME STATE
+  const local = Game.local = {
+    buildings: [ [], [] ],
+    coins: [ 7, 7 ],
+    discarded: new Set,
+    lastTargetId: 0,
+  }
+
   const state = Game.state = {
     // shared state (from game logic)
     deck: Stack.writer(null),
     turn: Stack.writer(0),
     player: Stack.writer(0),
-    actions: Stack.writer([]), // 1 event per turn
-    actionCount: Stack.writer(0),
+    moveCount: Stack.writer(0),
+    moves: Stack.writer([]),
 
     // my state (from dom interactions)
     cursor: Stack.writer([-1,-1]),
@@ -203,6 +210,11 @@ exportJS(function Game({ cards, slotsValues, agePositions, art }) {
     enemyInteraction: Stack.writer(200),
   }
 
+  Stack.persist({ moves: state.moves })
+
+  const setTarget = i => i < 200 && (local.lastTargetId = i + 100*(i > 99))
+  state.interaction.on(setTarget)
+  state.enemyInteraction.on(setTarget)
 
   // UTILS
   // we need a seeded random for deterministic plays
@@ -230,9 +242,36 @@ exportJS(function Game({ cards, slotsValues, agePositions, art }) {
     return arr
   }
 
-  Game.init = ({ seed, actions = [], isHost }) => {
+  const moveTypes = {
+    build: () => {},
+    wonder: () => {},
+    sell: ({ card, event, player }) => {
+      const card = cards[target]
+      const buildings = state.buildings.get()[player]
+      const price = buildings.filter(b => b.type === '🟡').length + 2
+      local.discarded.add(card)
+    }
+  }
+
+  const getEvent = code =>
+    code < 100 ? { type: 'destroy', target: cards[code] } :
+    code < 105 ? { type: 'wonder', target: code-100 } :
+    code < 106 ? { type: 'build' } : { type: 'bank' }
+
+  const play = ([ type, eventCode ]) => {
+    const card = cards[local.lastTargetId]
+    const move = moveTypes[type]
+    const event = getEvent(eventCode)
+    const turn = state.turn.get()
+    const player = turn ? state.player.get() : ~state.player.get()&1
+    const replay = move({ card, event, player }) // execute move
+    replay || state.turn.set(~turn&1) // toggle turn
+
+  }
+
+  Game.init = ({ seed, moves = [], isHost }) => {
     setSeed(seed)
-    const firstTurn = (seed + actions.length + isHost) % 2
+    const firstTurn = (seed + moves.length + isHost) % 2
 
     // set player id
     state.player.set(Number(firstTurn === 0))
@@ -240,8 +279,8 @@ exportJS(function Game({ cards, slotsValues, agePositions, art }) {
     // set player turn
     state.turn.set(firstTurn)
 
-    // TODO: replay actions to fast-forward game state
-    state.actions.set(actions)
+    // TODO: replay moves to fast-forward game state
+    for (const move of moves) play(move)
 
     // Pre-distribute the cards
     state.deck.set([

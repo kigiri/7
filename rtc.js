@@ -171,9 +171,7 @@ exportJS(function RTC() {
 
     // BUFFER PAYLOAD LAYOUT
     let size = 0
-    const ACTION_COUNT = size; size++ // Uint8
     const INTERACTION = size; size++ // Uint8
-    const LAST_TARGET = size; size++ // Uint8
     const X = size; size+=4 // Float32
     const Y = size; size+=4 // Float32
     const buf = new ArrayBuffer(size)
@@ -185,9 +183,7 @@ exportJS(function RTC() {
     }
 
     let lastUpdate = Date.now()
-    Game.state.actionCount.on(writeUint8(ACTION_COUNT))
     Game.state.interaction.on(writeUint8(INTERACTION))
-    Game.state.lastTarget.on(writeUint8(LAST_TARGET))
     Game.state.cursor.on(([x, y]) => {
       const now = Date.now()
       // cap too ~16ms because 60hz + is overkill
@@ -198,16 +194,14 @@ exportJS(function RTC() {
       channel.send(buf)
     })
 
-    const { enemyCursor, actionCount, enemyInteraction, enemyLastTarget } = Game.state
+    const { enemyCursor, enemyInteraction } = Game.state
     const parseBlobPayload = blob => blob
       .arrayBuffer()
       .then(parsePayload)
 
     const parsePayload = data => {
       const v = new DataView(data)
-      actionCount.set(v.getUint8(ACTION_COUNT) % 2)
       enemyInteraction.set(v.getUint8(INTERACTION))
-      enemyLastTarget.set(v.getUint8(LAST_TARGET))
       enemyCursor.set([v.getFloat32(X), v.getFloat32(Y)])
     }
 
@@ -218,7 +212,7 @@ exportJS(function RTC() {
       // the client is still alive (maybe already done by WebRTC?)
       if (data instanceof ArrayBuffer) return parsePayload(data)
       if (data instanceof Blob) return parseBlobPayload(data)
-      // recieve game action
+      // recieve game moves
       const payload = JSON.parse(data)
       if (isHost) return console.log('RTC.json', payload)
       Game.init({ ...payload, isHost })
@@ -227,7 +221,7 @@ exportJS(function RTC() {
     if (!isHost) return
     const seed = Math.floor(Math.random() * 0x7FFFFFFF)
     // if host send currend game data
-    const initialGameState = { seed, actions: Game.state.actions.get() }
+    const initialGameState = { seed, moves: Game.state.moves.get() }
     isHost && channel.send(JSON.stringify(initialGameState))
     Game.init({...initialGameState, isHost })
   }
