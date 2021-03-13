@@ -443,7 +443,6 @@ CSS.push(`
   stroke-width: 2px;
   stroke-linecap: butt;
   stroke-linejoin: miter;
-  transition: transform 16ms;
   position: absolute;
   pointer-events: none;
   z-index: 1000;
