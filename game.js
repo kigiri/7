@@ -108,6 +108,10 @@ const cards = [
 // III('🟣', 'arena', resource(1)),
 ]
 
+// BALANCE:
+// Pyramid gives now 11 victory points (buffed from 9)
+// 2nd player get 1 more gold
+
 const wonders = [
   { name: 'Appian Way', ...cost(1) },
   { name: 'Circus Maximus', ...cost(1) },
@@ -177,7 +181,7 @@ const agePositions = {
 // art: https://www.facebook.com/miguelcoimbraillustrator
 // game: 
 
-exportJS(function Game({ cards, slotsValues, agePositions, art }) {
+exportJS(function Game({ cards, slotsValues, agePositions, wonders }) {
 
   // GAME DATA
   Game.slots = new Map(slotsValues.map(s => [s.key, s]))
@@ -186,18 +190,21 @@ exportJS(function Game({ cards, slotsValues, agePositions, art }) {
   // GAME STATE
   const local = Game.local = {
     buildings: [ [], [] ],
-    coins: [ 7, 7 ],
+    coins: [ 7, 8 ],
     discarded: new Set,
-    lastTargetId: 0,
+    enemy: 1,
+    player: 0,
+    playerTurn: 0,
   }
 
   const state = Game.state = {
     // shared state (from game logic)
-    deck: Stack.writer(null),
-    turn: Stack.writer(0),
-    player: Stack.writer(0),
-    moveCount: Stack.writer(0),
-    moves: Stack.writer([]),
+    deck: Eve(null),
+    turn: Eve(0),
+    player: Eve(0), // Eve event are synchronous
+    moveCount: Eve(0),
+    moves: Eve([]),
+    wonders: Eve([]),
 
     // my state (from dom interactions)
     cursor: Stack.writer([-1,-1]),
@@ -212,9 +219,8 @@ exportJS(function Game({ cards, slotsValues, agePositions, art }) {
 
   Stack.persist({ moves: state.moves })
 
-  const setTarget = i => i < 200 && (local.lastTargetId = i + 100*(i > 99))
-  state.interaction.on(setTarget)
-  state.enemyInteraction.on(setTarget)
+  state.player.on(p => local.enemy = ~(local.player = p)&1)
+  state.turn.on(t => local.playerTurn = t ? local.player : local.enemy)
 
   // UTILS
   // we need a seeded random for deterministic plays
@@ -242,31 +248,23 @@ exportJS(function Game({ cards, slotsValues, agePositions, art }) {
     return arr
   }
 
+  const isType = Stack.cache(t => ({ type }) => type === t)
   const moveTypes = {
     build: () => {},
     wonder: () => {},
-    sell: ({ card, event, player }) => {
-      const card = cards[target]
+    sell: ({ source, player }) => {
       const buildings = state.buildings.get()[player]
-      const price = buildings.filter(b => b.type === '🟡').length + 2
-      local.discarded.add(card)
+      const price = buildings.filter(isType['🟡']).length + 2
+      local.discarded.add(source)
     }
   }
 
-  const getEvent = code =>
-    code < 100 ? { type: 'destroy', target: cards[code] } :
-    code < 105 ? { type: 'wonder', target: code-100 } :
-    code < 106 ? { type: 'build' } : { type: 'bank' }
-
-  const play = ([ type, eventCode ]) => {
-    const card = cards[local.lastTargetId]
+  const play = ({ type, sourceId, target }) => {
     const move = moveTypes[type]
-    const event = getEvent(eventCode)
     const turn = state.turn.get()
-    const player = turn ? state.player.get() : ~state.player.get()&1
-    const replay = move({ card, event, player }) // execute move
+    const player = turn ? local.player : local.enemy
+    const replay = move({ source: cards[sourceId], player, target })
     replay || state.turn.set(~turn&1) // toggle turn
-
   }
 
   Game.init = ({ seed, moves = [], isHost }) => {
@@ -281,6 +279,9 @@ exportJS(function Game({ cards, slotsValues, agePositions, art }) {
 
     // TODO: replay moves to fast-forward game state
     for (const move of moves) play(move)
+
+    // Pick 8 wonders
+    state.wonders.set(shuffle([...wonders]).slice(0, 8))
 
     // Pre-distribute the cards
     state.deck.set([
@@ -312,4 +313,4 @@ exportJS(function Game({ cards, slotsValues, agePositions, art }) {
 //     document.getElementsByClassName('card').length || 0 // next age here
 
   }
-}, { cards, slotsValues: [...slots.values()], agePositions, art: wonders[0] })
+}, { cards, slotsValues: [...slots.values()], agePositions, wonders })
