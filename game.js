@@ -211,9 +211,9 @@ exportJS(function Game({ cards, slotsValues, agePositions, art }) {
     let w = (123456789 + seed) & 0xffffffff
     let z = (987654321 - seed) & 0xffffffff
     return rand = () => {
-      z = (36969 * (z & 65535) + (z >>> 16)) & 0xffffffff
-      w = (18000 * (w & 65535) + (w >>> 16)) & 0xffffffff
-      return (((z << 16) + (w & 65535)) >>> 0) / 4294967296
+      z = (36969 * (z & 0xffff) + (z >>> 0x10)) & 0xffffffff
+      w = (18000 * (w & 0xffff) + (w >>> 0x10)) & 0xffffffff
+      return (((z << 0x10) + (w & 0xffff)) >>> 0) / 0x100000000
     }
   }
 
