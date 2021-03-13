@@ -10,6 +10,7 @@ const getCookies = req => req.headers.cookie && cookie.parse(req.headers.cookie)
 ws.onOpen(client => {
   const sessionId = getCookies(client.req)?.['X-Session-Id']
   client.id = sessionId || randomBytes(4).toString('hex')
+  console.log('RTC:init', client.id)
 })
 
 // HANDLE SESSIONS SIGNALS
@@ -92,13 +93,11 @@ ws.on('acceptInvite', (data, client) => ws.send(client.match, 'acceptInvite'))
 // CLIENT COMMUNICATION
 exportJS(function RTC() {
   const sessionInput = Stack.h.input()
-  const state = Stack.initState({
-    sessionId: sessionInput, // random str
-    role: '', // host | guest
+  const state = Stack.persist({
+    sessionId: Stack.bind(sessionInput), // random str
+    role: Eve(''), // host | guest
   })
-
-  Stack.persist(state.role)
-  Stack.persist(state.sessionId)
+ 
 
   const createConnection = () => {
     const iceServers = [{ urls: 'stun:stun.l.google.com:19302' }]
@@ -186,10 +185,10 @@ exportJS(function RTC() {
     }
 
     let lastUpdate = Date.now()
-    Game.state.actionCount.sub(writeUint8(ACTION_COUNT))
-    Game.state.lastTarget.sub(writeUint8(LAST_TARGET))
-    Game.state.interaction.sub(writeUint8(INTERACTION))
-    Game.state.cursor.sub(([x, y]) => {
+    Game.state.actionCount.on(writeUint8(ACTION_COUNT))
+    Game.state.interaction.on(writeUint8(INTERACTION))
+    Game.state.lastTarget.on(writeUint8(LAST_TARGET))
+    Game.state.cursor.on(([x, y]) => {
       const now = Date.now()
       // cap too ~16ms because 60hz + is overkill
       if (now - lastUpdate < 15) return

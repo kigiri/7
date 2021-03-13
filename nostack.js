@@ -37,37 +37,6 @@ export const listFiles = check => async path => {
 export const listJSFiles = listFiles(f => f.endsWith('.js'))
 export const listCSSFiles = listFiles(f => f.endsWith('.css'))
 export const getRootDir = meta => dirname(fileURLToPath(meta.url))
-export function Eve() {
-  const id = _ => _
-  const eq = (a, b) => a === b
-  const call = subs => value => { for (const fn of subs) fn(value) }
-  return (Eve = (data, opts) => {
-    const subs = new Set()
-    const on = fn => (subs.add(fn), () => subs.delete(fn))
-    const next = () => new Promise(once)
-    const once = fn => subs.add(function $(prev, next) {
-      fn(prev, next)
-      subs.delete($)
-    })
-    if (data === undefined) return { next, once, on, trigger: call(subs) }
-    const { mapper = id, compare = eq } = opts || {}
-    data = mapper(data)
-    return {
-      once,
-      next,
-      map: mapper => Eve(data, { mapper }),
-      get: () => data,
-      on: fn => (fn(data), on(data)),
-      set: (next, force) => {
-        next = mapper(next)
-        if (force || next === data) return
-        for (const fn of subs) fn(next, data)
-        data = next
-      },
-    }
-  })()
-}
-
 export const errors = new Proxy(
   {},
   {
@@ -302,27 +271,67 @@ ${indexJS.join('\n')}
 `
 
 // FRONT-END "framework"
-exportJS(function Stack() {
-  const VALUE = Symbol('value')
-  const writers = new Set()
-  const readers = new Set()
-  const loop = () => {
-    for (const reader of readers) {
-      try { reader() } catch (err) {
-        err.reader = reader
-        console.error(err)
-      }
-    }
-
-    for (const write of writers) write()
-    requestAnimationFrame(loop)
+export function Eve() {
+  const id = _ => _
+  const eq = (a, b) => a === b
+  const isFn = fn => arg => {
+    if (typeof arg === 'function') return fn(arg)
+    throw Error(`${typeof arg} is not a function`)
   }
-  requestAnimationFrame(loop)
+  const call = subs => value => { for (const fn of subs) fn(value) }
+  return (Eve = (data, opts) => {
+    const subs = new Set()
+    const on = isFn(fn => (subs.add(fn), () => subs.delete(fn)))
+    const next = () => new Promise(once)
+    const once = isFn(fn => subs.add(function $(prev, next) {
+      fn(prev, next)
+      subs.delete($)
+    }))
+    if (data === undefined) return { next, once, on, trigger: call(subs) }
+    const { mapper = id, compare = eq } = opts || {}
+    data = mapper(data)
+    return {
+      once,
+      next,
+      map: isFn(mapper => Eve(data, { mapper })),
+      get: () => data,
+      on: isFn(fn => (fn(data), on(fn))),
+      set: (next, force) => {
+        next = mapper(next)
+        if (force || next === data) return
+        for (const fn of subs) fn(next, data)
+        data = next
+      },
+    }
+  })()
+}
+
+exportJS(Eve)
+exportJS(function Stack() {
+  const { trigger: readNow, ...read } = Eve()
+  const { trigger: writeNow, ...write } = Eve()
+  requestAnimationFrame(function loop() {
+    readNow()
+    writeNow()
+    requestAnimationFrame(loop)
+  })
 
   const isObject = value => value?.constructor === Object
-  const toId = key =>
-    /^[$A-Za-z_][0-9A-Za-z_$]*$/.test(key) ? `.${key}` : `[${JSON.stringify(key)}]`
+  const append = (node, children) => {
+    if (children == null) return node
+    if (!Array.isArray(children)) return (node.append(children), node)
+    for (const child of children) append(node, child)
+    return node
+  }
 
+  const empty = node => {
+    while (node && node.firstChild) node.removeChild(node.firstChild)
+    return node
+  }
+
+  const throttle = (fn, delay, t, call = () => (t = 0, fn())) =>
+    () => t || (t = setTimeout(call, delay))
+  
   const nodeGetters = n => {
     switch (n.type) {
       case 'number':
@@ -338,202 +347,66 @@ exportJS(function Stack() {
     return v => n[k] = v
   }
 
-  const initState = state => {
-    const build = (value, path) => {
-      if (isObject(value)) {
-        return Object.fromEntries(Object.entries(value)
-          .map(([ k, v ]) => [ k, build(v, `${path}${toId(k)}`) ]))
-      }
-
-      const set = new Function(['s', 'v'], `return s${path}=v`)
-      const v = { [VALUE]: path, get: () => value }
-
-      if (value instanceof Node) {
-        v.set = nodeSetters(value)
-        value = nodeGetters(value)
-      }
-
-      let refresh
-      if (typeof value === 'function') {
-        const reader = value
-        value = reader()
-        readers.add(() => {
-          const next = reader()
-          if (next === value) return
-          set(state, value = next)
-          refresh = true
-        })
-      } else {
-        v.set = newValue => set(state, newValue)
-        const reader = new Function(['s'], `return s${path}`)
-        readers.add(() => {
-          const next = reader(state)
-          if (next === value) return
-          value = next
-          refresh = true
-        })
-      }
-
-      const subs = new Set()
-      v.sub = sub => {
-        sub(value)
-        subs.size || writers.add(update)
-        subs.add(sub)
-        return () => {
-          subs.delete(sub)
-          subs.size || writers.delete(update)
-        }
-      }
-
-      const update = () => {
-        if (!refresh) return
-        for (const sub of subs) {
-          try {
-            sub(value)
-          } catch (err) {
-            err.path = path
-            err.value = value
-            err.subscriber = sub
-            console.error(err)
-          }
-        }
-        refresh = false
-      }
-
-      v.map = fn => {
-        const vv = Object.create(v)
-        vv.sub = s => v.sub(x => s(fn(x, state)))
-        return vv
-      }
-      return v
-    }
-    return build(state, '')
+  Stack.bind = node => {
+    const get = nodeGetters(node)
+    const { set, ...obs } = Eve(get())
+    read.on(() => set(get()))
+    obs.set = nodeSetters(node)
+    return obs
   }
 
-  const append = (elem, value) => {
-    if (value == undefined) return elem
-    switch (typeof value) {
-      case 'string':
-      case 'number':
-      case 'function':
-      case 'boolean': {
-        elem.appendChild(document.createTextNode(value))
-        return elem
-      }
-      case 'symbol': return append(elem, `Symbol(${value.description})`)
-      case 'object': {
-        if (value[VALUE] !== undefined) {
-          const node = document.createTextNode('')
-          let unsub
-          const reader = () => {
-            if (document.body.contains(elem)) {
-              unsub || (unsub = value.sub(v => node.nodeValue = v))
-            } else if (unsub) {
-              unsub()
-              unsub = undefined
-              readers.delete(reader)
-            }
-          }
-          readers.add(reader)
-          // TODO: remove when the element is dismounted.
-          elem.appendChild(node)
-        } else if (value instanceof Node) {
-          elem.appendChild(value)
-        } else if (Array.isArray(value)) {
-          for (const v of value) append(elem, v)
-        }
-        return elem
-      }
-      console.warn('Unexpected children value type', value, elem)
-      return elem
+  Stack.persist = all => {
+    for (const [k, { set, get, on }] of Object.entries(all)) {
+      const cached = localStorage[k]
+      const save = () => localStorage[k] = JSON.stringify(get())
+      try { cached ? set(JSON.parse(cached)) : save() }
+      catch (err) { save() }
+      on(throttle(save, 250))
+    }
+    return all
+  }
+
+  Stack.on = (all, fn) => {
+    const cache = {}
+    const trigger = throttle(() => fn(cache), 0)
+    for (const [k, { get, on }] of Object.entries(all)) {
+      on(v => trigger(cache[k] = v))
     }
   }
 
-  const mergeValue = (src, key, value) => (value && value[VALUE] !== undefined)
-    ? value.sub(v => src[key] = v)
-    : src[key] = value
+  // Get value only once per reads (always before writes)
+  Stack.reader = get => {
+    const { set, ...obs } = Eve(get()||null)
+    obs.remove = read.on(() => set(get()))
+    return obs
+  }
 
-  const createElement = tag => (a, b) => {
+  // event only triggered once per writes
+  Stack.writer = value => {
+    const { set, ...obs } = Eve(value)
+    obs.set = next => value = next
+    obs.remove = write.on(() => set(value))
+    return obs
+  }
+
+  Stack.replace = (node, content) => append(empty(node), content)
+  Stack.setText = (node, text) => node.firstChild.nodeValue = text
+  Stack.css = code => document.head.append(Stack.h.style(code))
+  const cache = fn => new Proxy({}, { get: (c, k) => c[k] || (c[k] = fn(k)) })
+  Stack.h = cache(tag => (a, b) => {
     // TODO: handle namespace for SVG
-    const elem = document.createElement(tag)
-    if (a == null) return elem
-    if (!isObject(a) || a[VALUE] !== undefined) return append(elem, a)
+    const node = document.createElement(tag)
+    if (a == null) return node
+    if (!isObject(a)) return append(node, a)
     for (const key of Object.keys(a)) {
       const value = a[key]
       if (value == null) continue
-      if (isObject(value) && value[VALUE] === undefined) {
-        for (const k of Object.keys(value)) {
-          mergeValue(elem[key], k, value[k])
-        }
-      }
-      mergeValue(elem, key, value)
+      isObject(value) ? Object.assign(node[key], value) : (node[key] = value)
     }
-    return append(elem, b)
-  }
-
-  const h = new Proxy({}, {
-    get: (s, tag) => s[tag] || (s[tag] = createElement(tag))
+    return append(node, b)
   })
 
-  const watch = object => Object.fromEntries(Object.keys(object)
-    .filter(k => typeof object[k] !== 'function')
-    .map(k => [ k, isObject(object[k]) ? watch(object[k]) : () => object[k]]))
-
-  const empty = elem => {
-    while (elem && elem.firstChild) elem.removeChild(elem.firstChild)
-    return elem
-  }
-
-  const save = (k, v) => localStorage[k] = JSON.stringify(v)
-  const persist = (value, prefix = '@@') => {
-    const key = `${prefix}${value[VALUE]}`
-    const cached = localStorage[key]
-    if (cached) {
-      try { value.set && value.set(JSON.parse(cached)) }
-      catch (err) { localStorage[key] = JSON.stringify(value.get()) }
-    } else {
-      localStorage[key] = JSON.stringify(value.get())
-    }
-
-    let t
-    return value.sub(v => {
-      clearTimeout(t)
-      t = setTimeout(save, 200, key, v)
-    })
-  }
-
-  const replace = (elem, content) => append(empty(elem), content)
-  const setText = (elem, text) => elem.firstChild.nodeValue = text
-  const css = code => document.head.append(h.style(code))
-  const sub = (values, fn) => {
-    if (values == null) return
-    const cache = {}
-    for (const [k, s] of Object.entries(values)) {
-      cache[k] = s.get()
-      s.sub(v => {
-        cache[k] = v
-        fn(cache)
-      })
-    }
-  }
-
-  Object.assign(Stack, {
-    writers,
-    readers,
-    isObject,
-    toId,
-    initState,
-    append,
-    createElement,
-    h,
-    watch,
-    empty,
-    persist,
-    replace,
-    setText,
-    css,
-    sub,
-  })
+  Object.assign(Stack, { isObject, append, empty, throttle, cache, read, write })
 })
 
 // CSS RESET

@@ -184,24 +184,24 @@ exportJS(function Game({ cards, slotsValues, agePositions, art }) {
   Game.cards = cards
 
   // GAME STATE
-  const state = Game.state = Stack.initState({
+  const state = Game.state = {
     // shared state (from game logic)
-    turn: 0,
-    player: 0,
-    deck: null,
-    actions: [], // 1 event per turn
-    actionCount: 0,
+    deck: Stack.writer(null),
+    turn: Stack.writer(0),
+    player: Stack.writer(0),
+    actions: Stack.writer([]), // 1 event per turn
+    actionCount: Stack.writer(0),
 
     // my state (from dom interactions)
-    cursor: [-1,-1],
-    lastTarget: 200,
-    interaction: 200,
+    cursor: Stack.writer([-1,-1]),
+    lastTarget: Stack.writer(200),
+    interaction: Stack.writer(200),
 
     // enemy state (from peer connection)
-    enemyCursor: [-1, -1],
-    enemyLastTarget: 200,
-    enemyInteraction: 200,
-  })
+    enemyCursor: Stack.writer([-1, -1]),
+    enemyLastTarget: Stack.writer(200),
+    enemyInteraction: Stack.writer(200),
+  }
 
 
   // UTILS

@@ -451,9 +451,7 @@ CSS.push(`
 `)
 
 board.append(cursorEl)
-const { boardPosition } = Stack.initState({
-  boardPosition: () => board.getBoundingClientRect(),
-})
+const boardPosition = Stack.reader(() => board.getBoundingClientRect())
 
 
 // mouse tracking
@@ -471,16 +469,14 @@ const setMouse = (e, name) => {
   const pad = HOLDED ? 100 : 0
   const hover = HOLDED || nearestCardMap.get(e.target)
   interaction.set(hover ? hover.card.index + pad : 200)
-  moveFrom(x, y, width)
 }
 
-addEventListener('mouseover', e => setMouse(e, 'mouseover'))
-addEventListener('mousemove', e => setMouse(e, 'mousemove'))
-addEventListener('mousedown', e => setMouse(e, 'mousedown'))
-addEventListener('mouseup',   e => setMouse(e, 'mouseup'))
+addEventListener('mouseover', e => setMouse(e, 'mouseover'), false)
+addEventListener('mousemove', e => setMouse(e, 'mousemove'), false)
+addEventListener('mousedown', e => setMouse(e, 'mousedown'), false)
+addEventListener('mouseup',   e => setMouse(e, 'mouseup'), false)
 
 const handleInteraction = (interaction, s) => {
-  console.log(`change interaction from ${s}`, { interaction })
   if (interaction < 100) {
     const card = Game.cards[interaction]
     setHolded(null)
@@ -503,12 +499,13 @@ const handleCursor = (data, el) => {
   moveFrom(x, y, width)
 }
 
-Game.state.interaction.sub(e => handleInteraction(e, 'normal'))
-Game.state.enemyInteraction.sub(e => handleInteraction(e, 'enemy'))
-Game.state.cursor.sub(handleCursor)
-Game.state.enemyCursor.sub(data => handleCursor(data, cursorEl))
-
-Game.state.enemyLastTarget.sub(target => {
+Game.state.interaction.on(e => handleInteraction(e, 'normal'))
+Game.state.enemyInteraction.on(e => handleInteraction(e, 'enemy'))
+Game.state.cursor.on(data => handleCursor(data)) // meh
+Game.state.enemyCursor.on(data => {
+  handleCursor(data, cursorEl)
+})
+Game.state.enemyLastTarget.on(target => {
   if (target < 100) {
     // handle card target (for destroys)
   } else if (target < 105) {
@@ -546,9 +543,9 @@ ${CSS.join('\n')}
 board.append(cardsWrapper, P0Zone, P1Zone, bottomActionsWrapper)
 document.body.append(board)
 
-Game.state.turn.sub(turn => board.dataset.turn = turn)
-Game.state.player.sub(player => board.dataset.player = player)
-Game.state.actions.sub(actions => {
+Game.state.turn.on(turn => board.dataset.turn = turn)
+Game.state.player.on(player => board.dataset.player = player)
+Game.state.actions.on(actions => {
   // 0 = player 1 pick 1 wonder (round 1)
   // 1 = player 2 pick 2 wonders, last is given to player 1
   // 2 = player 2 pick 1 wonder (round 2)
@@ -559,7 +556,7 @@ Game.state.actions.sub(actions => {
 })
 
 // New deck = new game
-Game.state.deck.sub(deck => {
+Game.state.deck.on(deck => {
   if (!deck) return
   Stack.replace(cardsWrapper, deck.map(Card))
 
