@@ -236,6 +236,7 @@ from the game state and react accordingly or trigger those that are initiated fr
 - [ ] Build a wonder
 - [ ] Handle wonders effects
 - [ ] Wining / Loosing events
+- [ ] Click on bank to check discarded cards
 - [ ] front end for sharing sessions
 - [ ] Lobby to host and join public sessions
 - [ ] Cleanup websocket connections after RTC chanel is open

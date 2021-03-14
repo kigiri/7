@@ -13,9 +13,9 @@ import { exportJS } from './nostack.js'
 
 // BUFFER PAYLOAD LAYOUT
 let offset = 0
-const move = { MIN: 2, type: {} }
-const seed = { SIZE: 4 }
 const pick = { SIZE: 1 }
+const seed = { SIZE: 4 }
+const move = { MIN: 2, type: {} }
 const input = { X: 0, Y: 4, INTERACTION: 8, SIZE: 9 }
 move.type = {
     sell: 200, 200: 'sell',
@@ -24,23 +24,23 @@ move.type = {
 }
 
 exportJS(function Encoding(defs) {
-  const _8 = Game.state.wonders.get()
   const INPUT_SIZE = defs.input.SIZE
   const SEED_SIZE = defs.seed.SIZE
 
   // SEED  UInt32
-  defs.seed.decode = buf => new DataView(buf).getUint32(0)
+  defs.seed.decode = buf => new Uint32Array(buf)[0]
 
   // PICK 1 (Uint8 bitmask)
   defs.pick.decode = buf => {
-    const pick = new DataView(buf).getUint8(0)
+    const [pick] = new Uint8Array(buf)
     return Game.state.wonders.get().filter((_, i) => pick & (1 << i))
   }
+
   // MOVE PACKET
   const moveTypes = defs.move.type
   const encodeMove = ({ source, target, type }) => target
-    ? [ moveTypes[type], source.index, target.index ]
-    : [ moveTypes[type], source.index ]
+    ? [moveTypes[type], source, target]
+    : [moveTypes[type], source]
 
   defs.move.encode = moves => {
     const data = moves.flatMap(encodeMove)
@@ -66,6 +66,7 @@ exportJS(function Encoding(defs) {
         move = { type: moveTypes[byte] }
       }
     }
+    move && moves.push(move)
     return moves
   }
 

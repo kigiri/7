@@ -190,37 +190,34 @@ exportJS(function Game({ cards, slotsValues, agePositions, wonders }) {
   // GAME STATE
   const local = Game.local = {
     buildings: [ [], [] ],
-    coins: [ 7, 8 ],
+    coins: [ -1, -1 ],
     discarded: new Set,
-    enemy: 1,
-    player: 0,
-    playerTurn: 0,
+    enemy: -1,
+    player: -1,
   }
 
   const state = Game.state = {
     // shared state (from game logic)
     deck: Eve(null),
-    turn: Eve(0),
-    player: Eve(0), // Eve event are synchronous
-    moveCount: Eve(0),
+    turn: Eve(-1), // Id of the player current turn
+    active: Eve(-1), // Id of the active player
+    player: Eve(-1), // Eve event are synchronous
+    moveCount: Eve(-1),
     moves: Eve([]),
     wonders: Eve([]),
 
     // my state (from dom interactions)
     cursor: Stack.writer([-1,-1]),
-    lastTarget: Stack.writer(200),
-    interaction: Stack.writer(200),
+    lastTarget: Stack.writer(0xFF),
+    interaction: Stack.writer(0xFF),
 
     // enemy state (from peer connection)
     enemyCursor: Stack.writer([-1, -1]),
-    enemyLastTarget: Stack.writer(200),
-    enemyInteraction: Stack.writer(200),
+    enemyLastTarget: Stack.writer(0xFF),
+    enemyInteraction: Stack.writer(0xFF),
   }
 
-  Stack.persist({ moves: state.moves })
-
-  state.player.on(p => local.enemy = ~(local.player = p)&1)
-  state.turn.on(t => local.playerTurn = t ? local.player : local.enemy)
+  // Stack.persist({ moves: state.moves })
 
   // UTILS
   // we need a seeded random for deterministic plays
@@ -253,30 +250,56 @@ exportJS(function Game({ cards, slotsValues, agePositions, wonders }) {
     build: () => {},
     wonder: () => {},
     sell: ({ source, player }) => {
-      const buildings = state.buildings.get()[player]
+      const buildings = local.buildings[player]
       const price = buildings.filter(isType['🟡']).length + 2
       local.discarded.add(source)
     }
   }
 
-  const play = ({ type, sourceId, target }) => {
+  const play = ({ type, source, target }) => {
     const move = moveTypes[type]
     const turn = state.turn.get()
-    const player = turn ? local.player : local.enemy
-    const replay = move({ source: cards[sourceId], player, target })
-    replay || state.turn.set(~turn&1) // toggle turn
+    const replay = move({
+      player: turn,
+      source: cards[source],
+      target: cards[target],
+    })
+    if (!replay) return
+    state.active.set(Number(turn ==! local.player))
+    state.turn.set(~turn&1)
   }
 
+  Game.attemptPlay = move => {
+    try {
+      play(move)
+      state.moves.set([...state.moves.get(), move])
+    }
+    catch (err) {
+      console.log(err)
+      // check if we need a target
+      // check if we don't have the ressources
+    }
+  }
+
+  state.moves.on((newMoves, oldMoves) => {
+    if (state.active.get()) return console.log('skipped: active')
+    if (oldMoves?.length === newMoves.length) return console.log('skipped: same moves')
+    const lastMove = newMoves[newMoves.length - 1]
+    if (!lastMove) return console.log('skipped: no moves')
+    play(lastMove)
+  })
   Game.init = ({ seed, isHost }) => {
     setSeed(seed)
     const moves = state.moves.get()
-    const firstTurn = (seed + moves.length + isHost) % 2
+    const firstTurn = (seed + moves.length) % 2
+    const player = isHost ? firstTurn : ~firstTurn&1
 
-    // set player id
-    state.player.set(Number(firstTurn === 0))
-
-    // set player turn
+    // set player data
+    local.player = player
+    local.enemy = ~player&1
+    state.player.set(player)
     state.turn.set(firstTurn)
+    state.active.set(Number(player === firstTurn))
 
     // TODO: replay moves to fast-forward game state
     for (const move of moves) play(move)

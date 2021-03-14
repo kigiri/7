@@ -165,7 +165,7 @@ exportJS(function RTC() {
     console.log('RTC connected', { channel })
 
     const { input } = Encoding
-    const { enemyCursor, enemyInteraction, moves } = Game.state
+    const { enemyCursor, enemyInteraction, moves, active } = Game.state
     const isHost = state.role.get() === 'host'
     Game.state.interaction.on(value => {
       input.encodeInteraction(value)
@@ -183,6 +183,16 @@ exportJS(function RTC() {
       channel.send(input.buf)
     })
 
+    moves.on((newMoves, oldMoves) => {
+      if (!active.get()) return console.log('not sent: inactive')
+      if (oldMoves?.length === newMoves.length) return console.log('not sent: same moves')
+      const lastMove = newMoves[newMoves.length - 1]
+      if (!lastMove) return console.log('not sent: no moves')
+      const buf = Encoding.move.encode([lastMove])
+      channel.send(buf)
+      console.log('move sent:', lastMove, new Uint8Array(buf))
+    })
+
     const parsePayload = buf => {
       if (buf.byteLength === input.SIZE) {
         const packet = input.decode(buf)
@@ -198,7 +208,8 @@ exportJS(function RTC() {
       if (buf.byteLength === Encoding.pick.SIZE) {
         return encoding.pick.decode(buf)
       }
-
+      const result = Encoding.move.decode(buf)
+      console.log('decoding move', new Uint8Array(buf), '->', result)
       moves.set([...moves.get(), ...Encoding.move.decode(buf)])
     }
 
@@ -210,8 +221,6 @@ exportJS(function RTC() {
     if (!isHost) return
     seed = Math.floor(Math.random() * 0xFFFFFFFF)
     channel.send(new Uint32Array([seed]).buffer)
-    const history = Game.state.moves.get()
-    history.length && channel.send(Encoding.move.encode(history))
     Game.init({ seed, isHost })
   }
 

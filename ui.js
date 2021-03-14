@@ -6,8 +6,14 @@ const setHolded = newHolded => {
 }
 
 const calc = n => `calc(var(--n)*${n})`
-const setTargeted = newTarget =>
-  newTarget === TARGET || (board.dataset.target = TARGET = newTarget)
+const setTargeted = newTarget => {
+  if (newTarget === TARGET) return
+  const code = newTarget[newTarget.length - 1]
+  if (code && code !== 'k' && code != Game.state.turn.get()) {
+    return setTargeted('')
+  }
+  board.dataset.target = TARGET = newTarget
+}
 
 const { div, p, span } = Stack.h
 const CSS = []
@@ -131,7 +137,7 @@ CSS.push(...[...Game.slots.values()].map(({key, x, y}) => `
   transform: scale(1);
 }
 
-#board[data-interaction="hover${key}"][data-turn="0"] .card.${key} {
+#board[data-interaction="hover${key}"][data-active="0"] .card.${key} {
   cursor: not-allowed;
 }
 
@@ -267,9 +273,10 @@ CSS.push(`
 }
 `)
 
-const ActivePlayerTurnOnly = target => N(2)
-  .flatMap(p => N(2).map(t => [p, t, `${target}-${Number(p === t)}`]))
-  .map(([p, t, id]) => `#board[data-player="${p}"][data-turn="${t}"][data-target="${id}"] #${id}`)
+const ActivePlayerTurnOnly = target => N(2).map(n => {
+  const id = `${target}-${n}`
+  return `#board[data-player="${n}"][data-turn="${n}"][data-target="${id}"] #${id}`
+})
 
 // Intractivity
 CSS.push(`
@@ -286,12 +293,15 @@ bottomWrapper.append(P0Wonders, P1Wonders, P0Hub, P1Hub, bank, warProgress)
 const Card = (props, i) => {
   const { age, type, name, effects, cost, index, slot } = props
   const className = `card ${type} age${age} ${slot.key} ${slot.y % 2 ? 'back' : ''}`
-  const onmousedown = (e) => {
-    if (!Game.state.turn.get()) return
-    setHolded(props.element)
+  const onmousedown = () => setHolded(el)
+  const onmouseup = () => {
+    if (HOLDED !== el || !TARGET) return console.log('no drop', { el, HOLDED, TARGET })
+    if (TARGET.startsWith('wonder')) return console.log('TODO: implement wonder selection')
+    const type = TARGET === 'bank' ? 'sell' : 'build'
+    Game.attemptPlay({ source: index, type })
   }
 
-  const el = div({ className, onmousedown }, [
+  const el = div({ className, onmousedown, onmouseup }, [
     CardEffects(effects),
     CardCost(cost, name),
   ])
@@ -337,7 +347,7 @@ CSS.push(`
   box-shadow: inset 0px 0px 0 ${calc(2)} #0006;
 }
 
-#board[data-turn="0"] .card, .card.back { pointer-events: none }
+#board[data-active="0"] .card, .card.back { pointer-events: none }
 
 .card p {
   height: 50%;
@@ -530,6 +540,7 @@ board.append(cardsWrapper, P0Zone, P1Zone, bottomWrapper)
 document.body.append(board)
 
 Game.state.turn.on(turn => board.dataset.turn = turn)
+Game.state.active.on(active => board.dataset.active = active)
 Game.state.player.on(player => board.dataset.player = player)
 Game.state.moves.on(moves => {
   // 0 = player 1 pick 1 wonder (round 1)
