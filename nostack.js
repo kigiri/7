@@ -272,8 +272,6 @@ ${indexJS.join('\n')}
 
 // FRONT-END "framework"
 export function Eve() {
-  const id = _ => _
-  const eq = (a, b) => a === b
   const isFn = fn => arg => {
     if (typeof arg === 'function') return fn(arg)
     throw Error(`${typeof arg} is not a function`)
@@ -288,19 +286,16 @@ export function Eve() {
       subs.delete($)
     }))
     if (data === undefined) return { next, once, on, trigger: call(subs) }
-    const { mapper = id, compare = eq } = opts || {}
-    data = mapper(data)
     return {
       once,
       next,
-      map: isFn(mapper => Eve(data, { mapper })),
       get: () => data,
       on: isFn(fn => (fn(data), on(fn))),
       set: (next, force) => {
-        next = mapper(next)
         if (force || next === data) return
-        for (const fn of subs) fn(next, data)
-        data = next
+        const prev = data
+              data = next
+        for (const fn of subs) fn(next, prev)
       },
     }
   })()
