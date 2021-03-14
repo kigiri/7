@@ -14,7 +14,7 @@ import { exportJS } from './nostack.js'
 // BUFFER PAYLOAD LAYOUT
 let offset = 0
 const move = { MIN: 2, type: {} }
-const seed = { SIZE: 1 }
+const seed = { SIZE: 4 }
 const pick = { SIZE: 1 }
 const input = { X: 0, Y: 4, INTERACTION: 8, SIZE: 9 }
 move.type = {
@@ -26,6 +26,7 @@ move.type = {
 exportJS(function Encoding(defs) {
   const _8 = Game.state.wonders.get()
   const INPUT_SIZE = defs.input.SIZE
+  const SEED_SIZE = defs.seed.SIZE
 
   // SEED  UInt32
   defs.seed.decode = buf => new DataView(buf).getUint32(0)
@@ -44,7 +45,10 @@ exportJS(function Encoding(defs) {
   defs.move.encode = moves => {
     const data = moves.flatMap(encodeMove)
     // we pad to avoid collision with the input
-    data.length === INPUT_SIZE && data.push(0xff)
+    switch (data.length) {
+      case INPUT_SIZE:
+      case SEED_SIZE: data.push(0xff)
+    }
     return new Uint8Array(data).buffer
   }
 
@@ -76,8 +80,8 @@ exportJS(function Encoding(defs) {
   defs.input.decode = buf => {
     const view = new DataView(buf)
     return {
-      interaction: view.setUint8(INTERACTION),
-      cursor: [view.setFloat32(X), view.setFloat32(Y)],
+      interaction: view.getUint8(INTERACTION),
+      cursor: [view.getFloat32(X), view.getFloat32(Y)],
     }
   }
 

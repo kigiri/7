@@ -179,24 +179,27 @@ exportJS(function RTC() {
       // cap too ~16ms because 60hz + is overkill
       if (now - lastUpdate < 15) return
       lastUpdate = now
-      input.setCoords(x, y)
+      input.encodeCoords(x, y)
       channel.send(input.buf)
     })
 
     const parsePayload = buf => {
-      if (buf.byteLength === Encoding.pick.SIZE) {
-        encoding.pick.decode(buf)
-      } else if (buf.byteLength === input.SIZE) {
-        if (!seed) {
-          seed = Encoding.seed.decode(buf)
-          return Game.init({ seed, isHost })
-        }
+      if (buf.byteLength === input.SIZE) {
         const packet = input.decode(buf)
         enemyInteraction.set(packet.interaction)
-        enemyCursor.set(packet.cursor)
-      } else {
-        moves.set([...moves.get(), ...Encoding.move.decode(buf)])
+        return enemyCursor.set(packet.cursor)
       }
+
+      if (buf.byteLength === Encoding.seed.SIZE && !seed) {
+        seed = Encoding.seed.decode(buf)
+        return Game.init({ seed, isHost })
+      }
+
+      if (buf.byteLength === Encoding.pick.SIZE) {
+        return encoding.pick.decode(buf)
+      }
+
+      moves.set([...moves.get(), ...Encoding.move.decode(buf)])
     }
 
     channel.onmessage = ({ data }) =>
@@ -209,6 +212,7 @@ exportJS(function RTC() {
     channel.send(new Uint32Array([seed]).buffer)
     const history = Game.state.moves.get()
     history.length && channel.send(Encoding.move.encode(history))
+    Game.init({ seed, isHost })
   }
 
   const connect = async () => {

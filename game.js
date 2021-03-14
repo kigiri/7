@@ -267,8 +267,9 @@ exportJS(function Game({ cards, slotsValues, agePositions, wonders }) {
     replay || state.turn.set(~turn&1) // toggle turn
   }
 
-  Game.init = ({ seed, moves = [], isHost }) => {
+  Game.init = ({ seed, isHost }) => {
     setSeed(seed)
+    const moves = state.moves.get()
     const firstTurn = (seed + moves.length + isHost) % 2
 
     // set player id
