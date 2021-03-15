@@ -93,7 +93,8 @@ exportJS(function WS() {
     }
   }
 
-  const socket = new WebSocket(`ws://${location.host}`)
+  const { protocol, host } = location
+  const socket = new WebSocket(`ws${protocol.slice(4)}//${host}`)
   WS.connection = new Promise((s, f) => {
     socket.onopen = s
     socket.onerror = f // TODO: handle connexion error

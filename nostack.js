@@ -3,7 +3,8 @@ import { networkInterfaces } from 'os'
 import { fileURLToPath } from 'url'
 import { stat, readdir, readFile } from 'fs/promises'
 import { dirname, join, basename, parse } from 'path'
-import { createServer } from 'http'
+import http from 'http'
+import https from 'https'
 import { createReadStream, readFileSync, appendFile } from 'fs'
 import { performance } from 'perf_hooks'
 
@@ -183,6 +184,12 @@ const parsers = {
   'application/x-www-form-urlencoded': async req =>
     parseUrlFormEncoded(await text(req)),
 }
+
+const createServer = !process.env.TLS_KEY_PATH ? http.createServer :
+  fn => https.createServer({
+    key: readFileSync(`${process.env.TLS_KEY_PATH}-key.pem`),
+    cert: readFileSync(`${process.env.TLS_KEY_PATH}-cert.pem`),
+  }, fn)
 
 export const server = createServer(async (req, res) => {
   let _err, start = performance.now()
