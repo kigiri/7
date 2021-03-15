@@ -202,16 +202,17 @@ exportJS(function Game({ cards, slotsValues, agePositions, wonders }) {
     turn: Eve(-1), // Id of the player current turn
     active: Eve(-1), // Id of the active player
     player: Eve(-1), // Eve event are synchronous
-    moveCount: Eve(-1),
-    moves: Eve([]),
+    moves: Eve([]), // all moves of the game
     wonders: Eve([]),
 
     // my state (from dom interactions)
     cursor: Stack.writer([-1,-1]),
     lastTarget: Stack.writer(0xFF),
     interaction: Stack.writer(0xFF),
+    move: Eve(null),
 
     // enemy state (from peer connection)
+    enemyMove: Eve(null),
     enemyCursor: Stack.writer([-1, -1]),
     enemyLastTarget: Stack.writer(0xFF),
     enemyInteraction: Stack.writer(0xFF),
@@ -264,15 +265,16 @@ exportJS(function Game({ cards, slotsValues, agePositions, wonders }) {
       source: cards[source],
       target: cards[target],
     })
-    if (!replay) return
+    if (replay) return
     state.active.set(Number(turn ==! local.player))
+    state.moves.set([...state.moves.get(), { type, source, target }])
     state.turn.set(~turn&1)
   }
 
   Game.attemptPlay = move => {
     try {
       play(move)
-      state.moves.set([...state.moves.get(), move])
+      state.move.set(move)
     }
     catch (err) {
       console.log(err)
@@ -281,13 +283,10 @@ exportJS(function Game({ cards, slotsValues, agePositions, wonders }) {
     }
   }
 
-  state.moves.on((newMoves, oldMoves) => {
-    if (state.active.get()) return console.log('skipped: active')
-    if (oldMoves?.length === newMoves.length) return console.log('skipped: same moves')
-    const lastMove = newMoves[newMoves.length - 1]
-    if (!lastMove) return console.log('skipped: no moves')
-    play(lastMove)
+  state.enemyMove.on(move => {
+    move && play(move)
   })
+
   Game.init = ({ seed, isHost }) => {
     setSeed(seed)
     const moves = state.moves.get()
